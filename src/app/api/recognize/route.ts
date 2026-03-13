@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const client = new Anthropic({ apiKey });
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 512,
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
@@ -51,11 +51,19 @@ export async function POST(req: NextRequest) {
             },
             {
               type: "text",
-              text: `この画像に写っている商品を認識してください。
-JSON形式のみで回答してください。マークダウンのコードブロックや説明文は不要です。
-{"productName": "商品名", "price": 数値または null}
-- productName: 商品の一般的な名前（例：「牛乳」「食パン」「卵」）
+              text: `この画像を分析してください。商品の写真かレシートかを判別し、以下のJSON形式のみで回答してください。
+マークダウンのコードブロックや説明文は不要です。
+
+【商品の写真の場合】
+{"type": "product", "productName": "商品の一般的な名前", "price": 数値またはnull}
+
+【レシートの場合】
+{"type": "receipt", "storeName": "店名", "items": [{"name": "商品名", "price": 数値}]}
+
+- productName/name: 商品の一般的な名前（例：「牛乳」「食パン」「卵」）
 - price: 価格が見える場合は数値、見えない場合はnull
+- items: レシートに記載されている全商品（最大10件）
+
 JSONのみを返してください。`,
             },
           ],
@@ -76,9 +84,9 @@ JSONのみを返してください。`,
     // マークダウンコードブロックを除去
     const cleaned = text.replace(/```json\s*/g, "").replace(/```/g, "").trim();
 
-    // JSON抽出（フラットなオブジェクト）
-    const jsonMatch = cleaned.match(/\{[\s\S]*?\}/);
-    if (!jsonMatch) {
+    // JSON抽出（ネスト対応）
+    const jsonStr = extractJson(cleaned);
+    if (!jsonStr) {
       console.error("JSON extraction failed. Raw text:", text);
       return NextResponse.json(
         { error: "認識結果を解析できませんでした" },
@@ -86,14 +94,37 @@ JSONのみを返してください。`,
       );
     }
 
-    const result = JSON.parse(jsonMatch[0]);
+    const result = JSON.parse(jsonStr);
     return NextResponse.json(result);
   } catch (e) {
     console.error("recognize error:", e);
-    const message = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
-      { error: "サーバーエラーが発生しました", detail: message },
+      { error: "サーバーエラーが発生しました", detail: msg },
       { status: 500 }
     );
   }
+}
+
+function extractJson(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
 }

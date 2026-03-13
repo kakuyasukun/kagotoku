@@ -42,6 +42,7 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [adFree, setAdFree] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setAdFree(isAdFreeActive());
@@ -117,6 +118,55 @@ export default function Home() {
     setRefreshKey((k) => k + 1);
   }, []);
 
+  /** 認識結果から検索を実行し、結果にスクロールする */
+  const executeSearchAndScroll = useCallback(
+    (productName: string, recognizedPrice?: number) => {
+      setQuery(productName);
+      setPosts(searchPosts(productName));
+      setAmazonResults(searchAmazon(productName));
+      setHasSearched(true);
+      if (recognizedPrice) setPrice(String(recognizedPrice));
+      // 次のレンダリング後にスクロール
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    },
+    []
+  );
+
+  /** レシートの商品一覧から最大の節約効果がある商品を選ぶ */
+  const pickBestSavingsItem = useCallback(
+    (items: { name: string; price: number }[]): { name: string; price: number } | null => {
+      if (items.length === 0) return null;
+      if (items.length === 1) return items[0];
+
+      let bestItem = items[0];
+      let bestSavings = 0;
+
+      for (const item of items) {
+        const existingPosts = searchPosts(item.name);
+        const amazonItems = searchAmazon(item.name);
+        const allPricesForItem = [
+          ...existingPosts.map((p) => p.price),
+          ...amazonItems.map((a) => a.price),
+          item.price,
+        ];
+        if (allPricesForItem.length >= 2) {
+          const itemSavings = Math.max(...allPricesForItem) - Math.min(...allPricesForItem);
+          if (itemSavings > bestSavings) {
+            bestSavings = itemSavings;
+            bestItem = item;
+          }
+        }
+      }
+      return bestItem;
+    },
+    []
+  );
+
   const handleCameraCapture = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -137,20 +187,36 @@ export default function Home() {
         });
         const data = await res.json();
 
-        if (res.ok && data.productName) {
-          setQuery(data.productName);
-          setPosts(searchPosts(data.productName));
-          setAmazonResults(searchAmazon(data.productName));
-          setHasSearched(true);
-          if (data.price) {
-            setPrice(String(data.price));
-            setToastMsg(`📸 「${data.productName}」¥${data.price} を認識しました`);
-          } else {
-            setToastMsg(`📸 「${data.productName}」を認識しました`);
-          }
+        if (!res.ok) {
+          setToastMsg(data.error || "認識に失敗しました");
           setShowToast(true);
+          return;
+        }
+
+        if (data.type === "receipt" && data.items?.length > 0) {
+          // レシート: 最大節約効果の商品を選択
+          const best = pickBestSavingsItem(data.items);
+          if (best) {
+            const storeLabel = data.storeName ? `（${data.storeName}）` : "";
+            setToastMsg(
+              data.items.length > 1
+                ? `📸 レシートから${data.items.length}商品を認識${storeLabel} → 「${best.name}」を比較中`
+                : `📸 「${best.name}」¥${best.price.toLocaleString()} を認識しました${storeLabel}`
+            );
+            setShowToast(true);
+            executeSearchAndScroll(best.name, best.price);
+          } else {
+            setToastMsg("レシートの商品を読み取れませんでした");
+            setShowToast(true);
+          }
+        } else if (data.productName) {
+          // 商品写真
+          const priceLabel = data.price ? ` ¥${Number(data.price).toLocaleString()}` : "";
+          setToastMsg(`📸 「${data.productName}」${priceLabel} を認識しました`);
+          setShowToast(true);
+          executeSearchAndScroll(data.productName, data.price ?? undefined);
         } else {
-          setToastMsg(data.error || "商品を認識できませんでした");
+          setToastMsg("商品を認識できませんでした。もう一度お試しください");
           setShowToast(true);
         }
       } catch {
@@ -161,7 +227,7 @@ export default function Home() {
         if (cameraRef.current) cameraRef.current.value = "";
       }
     },
-    []
+    [executeSearchAndScroll, pickBestSavingsItem]
   );
 
   const allPrices = [
@@ -284,7 +350,7 @@ export default function Home() {
         </div>
 
         {hasSearched ? (
-          <>
+          <div ref={resultsRef} className="space-y-5">
             {/* 節約額 */}
             {allPrices.length >= 2 && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-accent/30
@@ -405,7 +471,7 @@ export default function Home() {
                 ))}
               </ul>
             </section>
-          </>
+          </div>
         ) : (
           <>
             {/* ===== バッジカード ===== */}
