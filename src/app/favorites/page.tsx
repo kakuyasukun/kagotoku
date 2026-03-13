@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import Header from "../components/Header";
 import Toast from "../components/Toast";
 import UserBadge from "../components/UserBadge";
+import PushNotificationBanner from "../components/PushNotificationBanner";
 import {
   getFavorites,
   removeFavorite,
@@ -17,27 +18,8 @@ export default function FavoritesPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [targetInput, setTargetInput] = useState("");
-  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default");
   const [toastMsg, setToastMsg] = useState("");
   const [showToast, setShowToast] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setPushPermission(Notification.permission);
-    } else {
-      setPushPermission("unsupported");
-    }
-  }, []);
-
-  const handleRequestPush = useCallback(async () => {
-    if (!("Notification" in window)) return;
-    const result = await Notification.requestPermission();
-    setPushPermission(result);
-    if (result === "granted") {
-      setToastMsg("🔔 通知を有効にしました！目標価格を下回ったらお知らせします");
-      setShowToast(true);
-    }
-  }, []);
 
   const favorites = useMemo(() => {
     void refreshKey;
@@ -101,24 +83,8 @@ export default function FavoritesPage() {
       <Header />
       <Toast message={toastMsg} show={showToast} type="success" onClose={() => setShowToast(false)} />
       <main className="max-w-lg mx-auto px-4 mt-6 space-y-5">
-        {/* プッシュ通知の許可 */}
-        {pushPermission === "default" && (
-          <button
-            onClick={handleRequestPush}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white
-                       rounded-2xl py-3.5 font-bold text-sm shadow-md
-                       hover:opacity-90 active:scale-[0.98] transition-all
-                       flex items-center justify-center gap-2"
-          >
-            <span>🔔</span>
-            通知を有効にして値下げをお知らせ
-          </button>
-        )}
-        {pushPermission === "granted" && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-2.5 text-center">
-            <p className="text-xs text-blue-600 font-medium">🔔 通知ON — 目標価格を下回ったらお知らせします</p>
-          </div>
-        )}
+        {/* プッシュ通知バナー */}
+        <PushNotificationBanner />
 
         {/* アラート通知 */}
         {alerts.length > 0 && (

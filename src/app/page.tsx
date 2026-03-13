@@ -21,6 +21,7 @@ import PointsAnimation from "./components/PointsAnimation";
 import Onboarding from "./components/Onboarding";
 import Toast from "./components/Toast";
 import UserBadge from "./components/UserBadge";
+import PushNotificationBanner from "./components/PushNotificationBanner";
 
 export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -474,6 +475,9 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {/* ===== プッシュ通知バナー ===== */}
+            <PushNotificationBanner />
+
             {/* ===== バッジカード ===== */}
             <UserBadge onRedeem={() => setRefreshKey((k) => k + 1)} />
 

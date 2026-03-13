@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Category, CATEGORY_LABELS, PricePost } from "../types";
-import { addPost, getPostsByDate } from "../storage";
+import { addPost, getPostsByDate, searchPosts } from "../storage";
 
 interface Props {
   date: string; // YYYY-MM-DD
@@ -18,6 +18,12 @@ export default function ExpenseModal({ date, onClose, onSaved }: Props) {
   const [storeName, setStoreName] = useState("");
   const [category, setCategory] = useState<Category>("food");
   const [saved, setSaved] = useState(false);
+  const [comparison, setComparison] = useState<{
+    enteredPrice: number;
+    communityMin: number | null;
+    communityStore: string | null;
+    savings: number;
+  } | null>(null);
 
   const existing = getPostsByDate(date);
 
@@ -57,6 +63,26 @@ export default function ExpenseModal({ date, onClose, onSaved }: Props) {
       localStorage.setItem("kagotoku_profile", JSON.stringify(profile));
     }
 
+    // 価格比較を計算
+    const enteredPrice = Number(price);
+    const communityPosts = searchPosts(productName.trim()).filter(
+      (p) => p.id !== post.id
+    );
+    if (communityPosts.length > 0) {
+      const cheapest = communityPosts.reduce((min, p) =>
+        p.price < min.price ? p : min
+      );
+      const diff = enteredPrice - cheapest.price;
+      setComparison({
+        enteredPrice,
+        communityMin: cheapest.price,
+        communityStore: cheapest.storeName,
+        savings: diff,
+      });
+    } else {
+      setComparison(null);
+    }
+
     setProductName("");
     setPrice("");
     setStoreName("");
@@ -64,7 +90,7 @@ export default function ExpenseModal({ date, onClose, onSaved }: Props) {
     setTimeout(() => {
       setSaved(false);
       onSaved();
-    }, 800);
+    }, 1500);
   }, [productName, price, storeName, category, date, onSaved]);
 
   return (
@@ -144,6 +170,39 @@ export default function ExpenseModal({ date, onClose, onSaved }: Props) {
           >
             {saved ? "保存しました！" : "支出を記録する"}
           </button>
+
+          {/* 価格比較結果 */}
+          {saved && comparison && (
+            <div className={`rounded-xl p-4 text-center animate-fade-in ${
+              comparison.savings > 0
+                ? "bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200"
+                : "bg-gradient-to-r from-green-50 to-emerald-50 border border-accent/30"
+            }`}>
+              {comparison.savings > 0 ? (
+                <>
+                  <p className="text-sm font-bold text-orange-700 mb-1">
+                    💡 ¥{comparison.savings.toLocaleString()}円 お得に買えた店があります！
+                  </p>
+                  <p className="text-xs text-orange-600">
+                    {comparison.communityStore} で ¥{comparison.communityMin?.toLocaleString()}
+                    （あなた: ¥{comparison.enteredPrice.toLocaleString()}）
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-accent mb-1">
+                    🎉 最安値で買えています！
+                  </p>
+                  {comparison.communityMin && (
+                    <p className="text-xs text-emerald-600">
+                      他の投稿: ¥{comparison.communityMin.toLocaleString()}
+                      （あなた: ¥{comparison.enteredPrice.toLocaleString()}）
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 既存データ */}
