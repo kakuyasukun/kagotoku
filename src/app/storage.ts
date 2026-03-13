@@ -8,6 +8,7 @@ import {
   Favorite,
   PointEntry,
   ShoppingItem,
+  ShoppingGroup,
 } from "./types";
 
 const STORAGE_KEY = "kagotoku_prices";
@@ -612,20 +613,67 @@ export function getNearbyStores(
   return Array.from(storeMap.values());
 }
 
-// ===== 買い物リスト =====
+// ===== 買い物リスト（グループ管理） =====
 
-export function getShoppingList(): ShoppingItem[] {
+export function getShoppingGroups(): ShoppingGroup[] {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(SHOPPING_LIST_KEY);
-  return raw ? JSON.parse(raw) : [];
+  if (!raw) return [];
+  const data = JSON.parse(raw);
+  // 旧フラットリスト → グループへの移行
+  if (Array.isArray(data) && data.length > 0 && !("items" in data[0])) {
+    const group: ShoppingGroup = {
+      id: crypto.randomUUID(),
+      name: "買い物リスト",
+      items: data as ShoppingItem[],
+      createdAt: new Date().toISOString(),
+    };
+    const groups = [group];
+    saveShoppingGroups(groups);
+    return groups;
+  }
+  return data as ShoppingGroup[];
 }
 
-function saveShoppingList(items: ShoppingItem[]): void {
-  localStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(items));
+function saveShoppingGroups(groups: ShoppingGroup[]): void {
+  localStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(groups));
 }
 
-export function addShoppingItem(productName: string): ShoppingItem {
-  const items = getShoppingList();
+export function getShoppingGroup(id: string): ShoppingGroup | null {
+  return getShoppingGroups().find((g) => g.id === id) ?? null;
+}
+
+export function createShoppingGroup(name: string): ShoppingGroup {
+  const groups = getShoppingGroups();
+  const group: ShoppingGroup = {
+    id: crypto.randomUUID(),
+    name,
+    items: [],
+    createdAt: new Date().toISOString(),
+  };
+  groups.unshift(group);
+  saveShoppingGroups(groups);
+  return group;
+}
+
+export function deleteShoppingGroup(id: string): void {
+  const groups = getShoppingGroups().filter((g) => g.id !== id);
+  saveShoppingGroups(groups);
+}
+
+export function renameShoppingGroup(id: string, name: string): void {
+  const groups = getShoppingGroups();
+  const group = groups.find((g) => g.id === id);
+  if (group) {
+    group.name = name;
+    saveShoppingGroups(groups);
+  }
+}
+
+export function addShoppingItem(groupId: string, productName: string): ShoppingItem {
+  const groups = getShoppingGroups();
+  const group = groups.find((g) => g.id === groupId);
+  if (!group) throw new Error("Group not found");
   const item: ShoppingItem = {
     id: crypto.randomUUID(),
     productName,
@@ -633,35 +681,38 @@ export function addShoppingItem(productName: string): ShoppingItem {
     addedAt: new Date().toISOString(),
     completedAt: null,
   };
-  items.unshift(item);
-  saveShoppingList(items);
+  group.items.push(item);
+  saveShoppingGroups(groups);
   addPoints(2, false);
   return item;
 }
 
-export function toggleShoppingItem(id: string): void {
-  const items = getShoppingList();
-  const item = items.find((i) => i.id === id);
+export function toggleShoppingItem(groupId: string, itemId: string): void {
+  const groups = getShoppingGroups();
+  const group = groups.find((g) => g.id === groupId);
+  const item = group?.items.find((i) => i.id === itemId);
   if (item) {
     item.completed = !item.completed;
     item.completedAt = item.completed ? new Date().toISOString() : null;
-    saveShoppingList(items);
+    saveShoppingGroups(groups);
   }
 }
 
-export function deleteShoppingItem(id: string): void {
-  const items = getShoppingList().filter((i) => i.id !== id);
-  saveShoppingList(items);
+export function deleteShoppingItem(groupId: string, itemId: string): void {
+  const groups = getShoppingGroups();
+  const group = groups.find((g) => g.id === groupId);
+  if (group) {
+    group.items = group.items.filter((i) => i.id !== itemId);
+    saveShoppingGroups(groups);
+  }
 }
 
-/** 購入済みアイテムを24時間後に自動削除 */
-export function cleanupCompletedItems(): number {
-  const items = getShoppingList();
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  const fresh = items.filter(
-    (i) => !i.completed || !i.completedAt || new Date(i.completedAt).getTime() > cutoff
-  );
-  const removed = items.length - fresh.length;
-  if (removed > 0) saveShoppingList(fresh);
-  return removed;
+export function clearCompletedItems(groupId: string): number {
+  const groups = getShoppingGroups();
+  const group = groups.find((g) => g.id === groupId);
+  if (!group) return 0;
+  const before = group.items.length;
+  group.items = group.items.filter((i) => !i.completed);
+  saveShoppingGroups(groups);
+  return before - group.items.length;
 }

@@ -1,60 +1,50 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import Header from "../components/Header";
 import Toast from "../components/Toast";
 import { useSound } from "../hooks/useSound";
 import {
-  getShoppingList,
-  addShoppingItem,
-  toggleShoppingItem,
-  deleteShoppingItem,
-  cleanupCompletedItems,
+  getShoppingGroups,
+  createShoppingGroup,
+  deleteShoppingGroup,
 } from "../storage";
-import type { ShoppingItem } from "../types";
 
 export default function ShoppingListPage() {
   const [refreshKey, setRefreshKey] = useState(0);
-  const [input, setInput] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [groupName, setGroupName] = useState("");
   const [toastMsg, setToastMsg] = useState("");
   const [showToast, setShowToast] = useState(false);
   const { play } = useSound();
 
-  const items = useMemo(() => {
+  const groups = useMemo(() => {
     void refreshKey;
-    cleanupCompletedItems();
-    return getShoppingList();
+    return getShoppingGroups();
   }, [refreshKey]);
 
-  const activeItems = items.filter((i) => !i.completed);
-  const completedItems = items.filter((i) => i.completed);
-
-  const handleAdd = useCallback(() => {
-    const name = input.trim();
+  const handleCreate = useCallback(() => {
+    const name = groupName.trim();
     if (!name) return;
     play("favorite");
-    addShoppingItem(name);
-    setInput("");
+    createShoppingGroup(name);
+    setGroupName("");
+    setShowNew(false);
     setRefreshKey((k) => k + 1);
-    setToastMsg(`「${name}」を追加しました (+2pt)`);
+    setToastMsg(`「${name}」を作成しました`);
     setShowToast(true);
-  }, [input, play]);
-
-  const handleToggle = useCallback(
-    (id: string, current: boolean) => {
-      play(current ? "search" : "post");
-      toggleShoppingItem(id);
-      setRefreshKey((k) => k + 1);
-    },
-    [play]
-  );
+  }, [groupName, play]);
 
   const handleDelete = useCallback(
-    (id: string) => {
-      deleteShoppingItem(id);
+    (id: string, name: string) => {
+      play("error");
+      deleteShoppingGroup(id);
       setRefreshKey((k) => k + 1);
+      setToastMsg(`「${name}」を削除しました`);
+      setShowToast(true);
     },
-    []
+    [play]
   );
 
   return (
@@ -68,149 +58,129 @@ export default function ShoppingListPage() {
       />
 
       <main className="max-w-lg mx-auto px-4 mt-6 space-y-5">
-        {/* 入力フォーム */}
-        <div className="bg-card-bg rounded-2xl shadow-md p-4 border border-border/50">
-          <h2 className="font-bold text-base mb-3">📝 買い物リスト</h2>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              placeholder="商品名を入力..."
-              className="flex-1 border border-border rounded-xl px-4 py-3 text-sm bg-background
-                         focus:outline-none focus:ring-2 focus:ring-primary/40
-                         placeholder:text-muted/50"
-              autoFocus
-            />
-            <button
-              onClick={handleAdd}
-              disabled={!input.trim()}
-              className="bg-primary text-white px-5 py-3 rounded-xl font-medium
-                         hover:bg-primary-hover active:scale-95 transition-all shadow-sm
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              追加
-            </button>
-          </div>
+        {/* ヘッダー + 作成ボタン */}
+        <div className="flex items-center justify-between">
+          <h1 className="font-bold text-lg">📝 買い物リスト</h1>
+          <button
+            onClick={() => setShowNew(true)}
+            className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-medium
+                       hover:bg-primary-hover active:scale-95 transition-all shadow-sm"
+          >
+            + 新しいリスト
+          </button>
         </div>
 
-        {/* 未購入リスト */}
-        <section className="bg-card-bg rounded-2xl shadow-sm border border-border/50 p-4">
-          <h3 className="font-bold text-sm mb-3 flex items-center gap-1.5">
-            🛒 未購入
-            {activeItems.length > 0 && (
-              <span className="text-xs font-normal text-muted">
-                ({activeItems.length}件)
-              </span>
-            )}
-          </h3>
-
-          {activeItems.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-3xl mb-2">🛒</p>
-              <p className="text-sm text-muted">
-                リストが空です
-                <br />
-                商品名を入力して追加しよう
-              </p>
+        {/* 新規作成フォーム */}
+        {showNew && (
+          <div className="bg-card-bg rounded-2xl shadow-md p-4 border border-border/50 animate-fade-in">
+            <p className="text-sm font-medium mb-2">リスト名</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                placeholder="例：3/14 イオン、週末まとめ買い"
+                className="flex-1 border border-border rounded-xl px-4 py-3 text-sm bg-background
+                           focus:outline-none focus:ring-2 focus:ring-primary/40
+                           placeholder:text-muted/50"
+                autoFocus
+              />
+              <button
+                onClick={handleCreate}
+                disabled={!groupName.trim()}
+                className="bg-primary text-white px-4 py-3 rounded-xl text-sm font-medium
+                           hover:bg-primary-hover active:scale-95 transition-all
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                作成
+              </button>
+              <button
+                onClick={() => { setShowNew(false); setGroupName(""); }}
+                className="text-muted text-sm px-2 hover:text-foreground"
+              >
+                ✕
+              </button>
             </div>
-          ) : (
-            <ul className="space-y-2">
-              {activeItems.map((item) => (
-                <ShoppingItemRow
-                  key={item.id}
-                  item={item}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
+          </div>
+        )}
 
-        {/* 購入済み */}
-        {completedItems.length > 0 && (
-          <section className="bg-card-bg rounded-2xl shadow-sm border border-border/50 p-4">
-            <h3 className="font-bold text-sm mb-3 text-muted flex items-center gap-1.5">
-              ✅ 購入済み
-              <span className="text-xs font-normal">
-                ({completedItems.length}件 · 24時間後に自動削除)
-              </span>
-            </h3>
-            <ul className="space-y-2">
-              {completedItems.map((item) => (
-                <ShoppingItemRow
-                  key={item.id}
-                  item={item}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </ul>
-          </section>
+        {/* グループ一覧 */}
+        {groups.length === 0 ? (
+          <div className="bg-card-bg rounded-2xl shadow-sm border border-border/50 p-8 text-center">
+            <p className="text-4xl mb-3">📝</p>
+            <p className="text-sm text-muted">
+              まだリストがありません
+              <br />
+              「+ 新しいリスト」で買い物リストを作ろう
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {groups.map((group) => {
+              const total = group.items.length;
+              const checked = group.items.filter((i) => i.completed).length;
+              const allDone = total > 0 && checked === total;
+              return (
+                <div
+                  key={group.id}
+                  className={`bg-card-bg rounded-2xl shadow-sm border p-4 flex items-center gap-3
+                    ${allDone ? "border-accent/40 bg-green-50/50" : "border-border/50"}`}
+                >
+                  <Link
+                    href={`/shopping-list/${group.id}`}
+                    className="flex-1 min-w-0"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-bold text-sm truncate">
+                        {group.name}
+                      </p>
+                      {allDone && (
+                        <span className="text-[10px] bg-accent text-white px-1.5 py-0.5 rounded-full font-bold">
+                          完了
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted">
+                      <span>
+                        {new Date(group.createdAt).toLocaleDateString("ja-JP", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      {total > 0 ? (
+                        <>
+                          <span>
+                            {checked}/{total} チェック済み
+                          </span>
+                          <div className="flex-1 max-w-[80px] h-1.5 bg-border rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-accent rounded-full transition-all"
+                              style={{ width: `${(checked / total) * 100}%` }}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <span>商品なし</span>
+                      )}
+                    </div>
+                  </Link>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDelete(group.id, group.name);
+                    }}
+                    className="text-muted hover:text-red-500 transition-colors shrink-0 p-2"
+                    title="削除"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         )}
       </main>
     </div>
-  );
-}
-
-function ShoppingItemRow({
-  item,
-  onToggle,
-  onDelete,
-}: {
-  item: ShoppingItem;
-  onToggle: (id: string, completed: boolean) => void;
-  onDelete: (id: string) => void;
-}) {
-  return (
-    <li className="flex items-center gap-3 bg-background rounded-xl p-3">
-      <button
-        onClick={() => onToggle(item.id, item.completed)}
-        className={`w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center
-                    transition-colors ${
-                      item.completed
-                        ? "bg-accent border-accent text-white"
-                        : "border-border hover:border-primary"
-                    }`}
-      >
-        {item.completed && <span className="text-xs">✓</span>}
-      </button>
-
-      <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm font-medium truncate ${
-            item.completed ? "line-through text-muted" : ""
-          }`}
-        >
-          {item.productName}
-        </p>
-        <p className="text-[10px] text-muted">
-          {new Date(item.addedAt).toLocaleDateString("ja-JP", {
-            month: "short",
-            day: "numeric",
-          })}
-          に追加
-        </p>
-      </div>
-
-      {!item.completed && (
-        <a
-          href={`/?q=${encodeURIComponent(item.productName)}`}
-          className="text-[10px] text-primary font-medium border border-primary/30
-                     rounded-lg px-2 py-1 hover:bg-primary/5 transition-colors shrink-0"
-        >
-          最安値チェック
-        </a>
-      )}
-
-      <button
-        onClick={() => onDelete(item.id)}
-        className="text-muted hover:text-red-500 transition-colors shrink-0 text-sm"
-      >
-        ✕
-      </button>
-    </li>
   );
 }

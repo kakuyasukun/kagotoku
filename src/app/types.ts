@@ -103,3 +103,10 @@ export interface ShoppingItem {
   addedAt: string;
   completedAt: string | null;
 }
+
+export interface ShoppingGroup {
+  id: string;
+  name: string;
+  items: ShoppingItem[];
+  createdAt: string;
+}
