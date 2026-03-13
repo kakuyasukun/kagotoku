@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import BottomNav from "./components/BottomNav";
+import Providers from "./components/Providers";
 
 const notoSansJP = Noto_Sans_JP({
   variable: "--font-geist-sans",
@@ -54,8 +55,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-orientations" content="portrait" />
       </head>
       <body className={`${notoSansJP.variable} antialiased`}>
-        {children}
-        <BottomNav />
+        <Providers>
+          {children}
+          <BottomNav />
+        </Providers>
       </body>
     </html>
   );

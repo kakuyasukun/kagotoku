@@ -24,6 +24,7 @@ import UserBadge from "./components/UserBadge";
 import PushNotificationBanner from "./components/PushNotificationBanner";
 import SoundToggle from "./components/SoundToggle";
 import BarcodeScanner from "./components/BarcodeScanner";
+import CloudSyncBanner from "./components/CloudSyncBanner";
 import { useSound } from "./hooks/useSound";
 
 export default function Home() {
@@ -535,6 +536,9 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {/* ===== クラウド同期バナー ===== */}
+            <CloudSyncBanner />
+
             {/* ===== プッシュ通知バナー ===== */}
             <PushNotificationBanner />
 
