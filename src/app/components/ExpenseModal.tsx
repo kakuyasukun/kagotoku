@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Category, CATEGORY_LABELS, PricePost } from "../types";
 import { addPost, getPostsByDate, searchPosts } from "../storage";
+import { useSound } from "../hooks/useSound";
 
 interface Props {
   date: string; // YYYY-MM-DD
@@ -18,6 +19,7 @@ export default function ExpenseModal({ date, onClose, onSaved }: Props) {
   const [storeName, setStoreName] = useState("");
   const [category, setCategory] = useState<Category>("food");
   const [saved, setSaved] = useState(false);
+  const { play } = useSound();
   const [comparison, setComparison] = useState<{
     enteredPrice: number;
     communityMin: number | null;
@@ -36,6 +38,7 @@ export default function ExpenseModal({ date, onClose, onSaved }: Props) {
 
   const handleSubmit = useCallback(() => {
     if (!productName.trim() || !price) return;
+    play("receipt");
 
     // postedAtを指定日に設定するためaddPostを拡張せず直接保存
     const post: PricePost = {
@@ -91,7 +94,7 @@ export default function ExpenseModal({ date, onClose, onSaved }: Props) {
       setSaved(false);
       onSaved();
     }, 1500);
-  }, [productName, price, storeName, category, date, onSaved]);
+  }, [productName, price, storeName, category, date, onSaved, play]);
 
   return (
     <div

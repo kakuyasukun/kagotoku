@@ -14,6 +14,7 @@ import {
   getExpiringSoonEntries,
 } from "../storage";
 import type { PointEntry } from "../types";
+import { useSound } from "../hooks/useSound";
 
 export default function UserBadge({
   onRedeem,
@@ -31,6 +32,7 @@ export default function UserBadge({
   const [validPoints, setValidPoints] = useState(0);
   const [validEntries, setValidEntries] = useState<PointEntry[]>([]);
   const [expiringSoon, setExpiringSoon] = useState<PointEntry[]>([]);
+  const { play } = useSound();
 
   const refresh = () => {
     setProfile(getProfile());
@@ -56,6 +58,7 @@ export default function UserBadge({
 
   const handleRedeem = () => {
     if (redeemAdFree()) {
+      play("coin");
       refresh();
       setShowModal(false);
       onRedeem?.();

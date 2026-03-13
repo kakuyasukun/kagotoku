@@ -22,6 +22,8 @@ import Onboarding from "./components/Onboarding";
 import Toast from "./components/Toast";
 import UserBadge from "./components/UserBadge";
 import PushNotificationBanner from "./components/PushNotificationBanner";
+import SoundToggle from "./components/SoundToggle";
+import { useSound } from "./hooks/useSound";
 
 export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -44,6 +46,7 @@ export default function Home() {
   const [adFree, setAdFree] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const { play } = useSound();
 
   useEffect(() => {
     setAdFree(isAdFreeActive());
@@ -90,13 +93,15 @@ export default function Home() {
 
   const handleSearch = useCallback(() => {
     if (!query.trim()) return;
+    play("search");
     setPosts(searchPosts(query.trim()));
     setAmazonResults(searchAmazon(query.trim()));
     setHasSearched(true);
-  }, [query]);
+  }, [query, play]);
 
   const handlePost = useCallback(() => {
     if (!query.trim() || !storeName.trim() || !price) return;
+    play("post");
     addPost({
       productName: query.trim(),
       storeName: storeName.trim(),
@@ -111,13 +116,17 @@ export default function Home() {
     setLocation("");
     setShowPointsAnim(true);
     setRefreshKey((k) => k + 1);
-    setTimeout(() => setShowPointsAnim(false), 2500);
-  }, [query, storeName, price, location, userLat, userLng]);
+    setTimeout(() => {
+      play("coin");
+      setShowPointsAnim(false);
+    }, 2500);
+  }, [query, storeName, price, location, userLat, userLng, play]);
 
   const handleFavorite = useCallback((productName: string) => {
+    play("favorite");
     addFavorite(productName);
     setRefreshKey((k) => k + 1);
-  }, []);
+  }, [play]);
 
   /** 認識結果から検索を実行し、結果にスクロールする */
   const executeSearchAndScroll = useCallback(
@@ -189,6 +198,7 @@ export default function Home() {
         const data = await res.json();
 
         if (!res.ok) {
+          play("error");
           setToastMsg(data.error || "認識に失敗しました");
           setShowToast(true);
           return;
@@ -196,6 +206,7 @@ export default function Home() {
 
         if (data.type === "receipt" && data.items?.length > 0) {
           // レシート: 最大節約効果の商品を選択
+          play("receipt");
           const best = pickBestSavingsItem(data.items);
           if (best) {
             const storeLabel = data.storeName ? `（${data.storeName}）` : "";
@@ -207,20 +218,24 @@ export default function Home() {
             setShowToast(true);
             executeSearchAndScroll(best.name, best.price);
           } else {
+            play("error");
             setToastMsg("レシートの商品を読み取れませんでした");
             setShowToast(true);
           }
         } else if (data.productName) {
           // 商品写真
+          play("search");
           const priceLabel = data.price ? ` ¥${Number(data.price).toLocaleString()}` : "";
           setToastMsg(`📸 「${data.productName}」${priceLabel} を認識しました`);
           setShowToast(true);
           executeSearchAndScroll(data.productName, data.price ?? undefined);
         } else {
+          play("error");
           setToastMsg("商品を認識できませんでした。もう一度お試しください");
           setShowToast(true);
         }
       } catch {
+        play("error");
         setToastMsg("認識に失敗しました。もう一度お試しください");
         setShowToast(true);
       } finally {
@@ -228,7 +243,7 @@ export default function Home() {
         if (cameraRef.current) cameraRef.current.value = "";
       }
     },
-    [executeSearchAndScroll, pickBestSavingsItem]
+    [executeSearchAndScroll, pickBestSavingsItem, play]
   );
 
   const allPrices = [
@@ -280,10 +295,13 @@ export default function Home() {
                 <p className="text-xs opacity-80">{badge.label}</p>
               </div>
             </div>
-            <div className="bg-white/20 backdrop-blur rounded-xl px-3 py-1.5">
-              <p className="text-sm font-bold">
-                {heroPoints}<span className="text-xs font-normal ml-0.5">pt</span>
-              </p>
+            <div className="flex items-center gap-2">
+              <SoundToggle />
+              <div className="bg-white/20 backdrop-blur rounded-xl px-3 py-1.5">
+                <p className="text-sm font-bold">
+                  {heroPoints}<span className="text-xs font-normal ml-0.5">pt</span>
+                </p>
+              </div>
             </div>
           </div>
 
