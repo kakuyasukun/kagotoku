@@ -42,6 +42,7 @@ export interface OverpassStore {
 
 export interface UserProfile {
   nickname: string;
+  avatar: string;
   points: number;
   postCount: number;
   createdAt: string;

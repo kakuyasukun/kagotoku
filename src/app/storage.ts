@@ -76,11 +76,16 @@ export function cleanupOldPosts(days: number = 14): number {
 
 export function getProfile(): UserProfile {
   if (typeof window === "undefined")
-    return { nickname: "", points: 0, postCount: 0, createdAt: "" };
+    return { nickname: "", avatar: "😊", points: 0, postCount: 0, createdAt: "" };
   const raw = localStorage.getItem(PROFILE_KEY);
-  if (raw) return JSON.parse(raw);
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    if (!parsed.avatar) parsed.avatar = "😊";
+    return parsed;
+  }
   const profile: UserProfile = {
     nickname: "",
+    avatar: "😊",
     points: 0,
     postCount: 0,
     createdAt: new Date().toISOString(),
@@ -96,6 +101,12 @@ export function saveProfile(profile: UserProfile): void {
 export function setNickname(name: string): void {
   const p = getProfile();
   p.nickname = name;
+  saveProfile(p);
+}
+
+export function setAvatar(emoji: string): void {
+  const p = getProfile();
+  p.avatar = emoji;
   saveProfile(p);
 }
 

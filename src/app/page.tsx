@@ -26,6 +26,7 @@ import SoundToggle from "./components/SoundToggle";
 import BarcodeScanner from "./components/BarcodeScanner";
 import CloudSyncBanner from "./components/CloudSyncBanner";
 import { useSound } from "./hooks/useSound";
+import Link from "next/link";
 
 export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -321,15 +322,15 @@ export default function Home() {
         <div className="max-w-lg mx-auto">
           {/* ユーザー情報 */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2.5">
+            <Link href="/mypage" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <span className="text-2xl">{badge.emoji}</span>
               <div>
                 <p className="font-bold text-sm">
-                  {profile.nickname || "カゴトクユーザー"}
+                  {profile.nickname || "ゲスト"}
                 </p>
                 <p className="text-xs opacity-80">{badge.label}</p>
               </div>
-            </div>
+            </Link>
             <div className="flex items-center gap-2">
               <SoundToggle />
               <div className="bg-white/20 backdrop-blur rounded-xl px-3 py-1.5">
