@@ -106,6 +106,7 @@ export default function PrivacyPage() {
             <div className="bg-background rounded-xl p-3 mt-2">
               <p>アプリ名：カゴトク</p>
               <p>運営者：がむくん</p>
+              <p>メール：gamukunkagotoku@gmail.com</p>
             </div>
           </section>
 

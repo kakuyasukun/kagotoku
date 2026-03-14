@@ -110,6 +110,7 @@ export default function TermsPage() {
           <div className="pt-4 border-t border-border text-xs text-muted text-center">
             <p>施行日：2026年3月14日</p>
             <p className="mt-1">運営者：がむくん</p>
+            <p className="mt-1">お問い合わせ：gamukunkagotoku@gmail.com</p>
           </div>
         </div>
       </main>
