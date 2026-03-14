@@ -54,6 +54,12 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* iPhone スプラッシュ (コーラルのグラデーション背景) */}
         <meta name="apple-mobile-web-app-orientations" content="portrait" />
+        {/* Google AdSense */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8501138808023781"
+          crossOrigin="anonymous"
+        />
       </head>
       <body className={`${notoSansJP.variable} antialiased`}>
         <Providers>
